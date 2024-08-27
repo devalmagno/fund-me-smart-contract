@@ -13,6 +13,11 @@ contract FundMeTest is Test {
     uint256 constant STARTING_BALANCE = 100 ether;
 
     // uint256 constant GAS_PRICE = 1;
+    modifier funded() {
+        vm.prank(i_user);
+        fundMe.fund{value: SEND_VALUE}();
+        _;
+    }
 
     function setUp() external {
         DeployFundMe deployFundMe = new DeployFundMe();
@@ -66,10 +71,7 @@ contract FundMeTest is Test {
         uint256 endingFundMeBalance = address(fundMe).balance;
 
         assertEq(endingFundMeBalance, 0);
-        assertEq(
-            startingOwnerBalance + startingFundMeBalance,
-            endingOwnerBalance
-        );
+        assertEq(startingOwnerBalance + startingFundMeBalance, endingOwnerBalance);
     }
 
     function testWithdrawFromMultipleFunders() public funded {
@@ -95,15 +97,24 @@ contract FundMeTest is Test {
         uint256 endingOwnerBalance = fundMe.getOwner().balance;
         uint256 endingFundMeBalance = address(fundMe).balance;
         assertEq(endingFundMeBalance, 0);
-        assertEq(
-            startingOwnerBalance + startingFundMeBalance,
-            endingOwnerBalance
-        );
+        assertEq(startingOwnerBalance + startingFundMeBalance, endingOwnerBalance);
     }
 
-    modifier funded() {
+    function testReceiveCanFundFundMe() public {
         vm.prank(i_user);
-        fundMe.fund{value: SEND_VALUE}();
-        _;
+        (bool sucess,) = address(fundMe).call{value: SEND_VALUE}("");
+        uint256 endingUserBalance = fundMe.getAdressToAmountFunded(i_user);
+
+        assertEq(endingUserBalance, SEND_VALUE);
+        assertEq(sucess, true);
+    }
+
+    function testFallbackCanFundFundMe() public {
+        vm.prank(i_user);
+        (bool sucess,) = address(fundMe).call{value: SEND_VALUE}("justTesting()");
+        uint256 endingUserBalance = fundMe.getAdressToAmountFunded(i_user);
+
+        assertEq(endingUserBalance, SEND_VALUE);
+        assertEq(sucess, true);
     }
 }
